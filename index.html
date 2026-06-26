@@ -121,6 +121,14 @@
             transform: translateY(-4px);
             box-shadow: 0px 8px 30px rgba(26, 54, 93, 0.08);
         }
+        /* Modal Animation */
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-animate {
+            animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
     </style>
 </head>
 <body class="font-body-md">
@@ -323,10 +331,7 @@
 <h2 class="font-headline-lg text-headline-lg text-primary mb-2">간편 지원하기</h2>
 <p class="text-on-surface-variant">30초 만에 끝나는 지원, 전문가가 직접 연락드립니다.</p>
 </div>
-<form class="space-y-6" action="https://formsubmit.co/urbannshow@naver.com" method="POST">
-<!-- FormSubmit settings -->
-<input type="hidden" name="_captcha" value="false">
-<input type="hidden" name="_subject" value="[GOLDENBRIDGE] 새로운 채용 지원서">
+<form class="space-y-6" id="apply-form-element">
 
 <div class="grid md:grid-cols-2 gap-6">
 <div class="space-y-2">
@@ -363,7 +368,7 @@
 <input class="mt-1 w-5 h-5 text-primary border-outline rounded" id="terms" type="checkbox"/>
 <label class="text-sm text-on-surface-variant" for="terms">개인정보 수집 및 이용에 동의합니다. (채용 상담 목적으로만 사용됩니다.)</label>
 </div>
-<button class="w-full bg-primary text-white font-button text-headline-md py-4 rounded hover:bg-on-background transition-all active:scale-[0.98]" type="submit">
+<button id="submit-btn" class="w-full bg-primary text-white font-button text-headline-md py-4 rounded hover:bg-on-background transition-all active:scale-[0.98]" type="submit">
                             지원 완료하기
                         </button>
 </form>
@@ -388,6 +393,49 @@
 <p class="font-body-md text-body-md opacity-60">© 2024 GOLDENBRIDGE  Recruitment. Institutional Stability. Executive Authority.</p>
 </div>
 </footer>
+
+<!-- Modal for Desktop SMS Submission -->
+<div id="desktop-sms-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-[#002045]/60 backdrop-blur-sm p-4">
+  <div class="bg-white rounded-lg shadow-2xl border border-outline-variant max-w-md w-full p-8 space-y-6 relative modal-animate">
+    <button id="close-modal" class="absolute top-4 right-4 text-on-surface-variant hover:text-primary transition-colors focus:outline-none">
+      <span class="material-symbols-outlined text-2xl">close</span>
+    </button>
+    <div class="text-center space-y-2">
+      <div class="w-12 h-12 bg-secondary-fixed-dim/20 text-secondary mx-auto flex items-center justify-center rounded-full">
+        <span class="material-symbols-outlined text-3xl">chat</span>
+      </div>
+      <h3 class="font-headline-md text-headline-md text-primary">문자 지원 안내</h3>
+      <p class="text-on-surface-variant text-sm">PC 환경에서는 문자 메시지 앱을 바로 실행할 수 없습니다. 아래 번호로 지원서를 직접 전송해 주시기 바랍니다.</p>
+    </div>
+    
+    <div class="bg-background p-4 rounded border border-outline-variant space-y-4">
+      <div>
+        <span class="font-bold text-xs text-primary block mb-1">수신 번호</span>
+        <div class="flex justify-between items-center bg-white border border-outline rounded px-3 py-2">
+          <span class="text-body-md font-mono text-primary font-bold">010-3471-6264</span>
+          <button id="copy-number-btn" class="text-xs text-secondary hover:underline flex items-center gap-1 font-semibold focus:outline-none">
+            <span class="material-symbols-outlined text-sm">content_copy</span> 복사
+          </button>
+        </div>
+      </div>
+      
+      <div>
+        <span class="font-bold text-xs text-primary block mb-1">문자 내용</span>
+        <div class="relative bg-white border border-outline rounded px-3 py-2">
+          <pre id="sms-text-content" class="text-xs font-sans whitespace-pre-wrap text-on-surface break-all select-all max-h-48 overflow-y-auto leading-relaxed"></pre>
+          <button id="copy-text-btn" class="absolute top-2 right-2 text-xs text-secondary hover:underline flex items-center gap-1 bg-white/90 px-2 py-0.5 rounded border border-outline-variant font-semibold focus:outline-none">
+            <span class="material-symbols-outlined text-sm text-xs">content_copy</span> 복사
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="flex">
+      <button id="modal-cancel" class="w-full border border-outline text-on-surface py-3 rounded text-button font-button hover:bg-background transition-colors focus:outline-none">닫기</button>
+    </div>
+  </div>
+</div>
+
 <script>
         // Simple micro-interactions
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
@@ -399,19 +447,81 @@
             });
         });
 
-        // Form submission verification
+        // Form submission verification and handling
         const form = document.querySelector('form');
+        const submitBtn = document.getElementById('submit-btn');
+        
+        // Modal elements
+        const desktopModal = document.getElementById('desktop-sms-modal');
+        const closeModalBtn = document.getElementById('close-modal');
+        const modalCancelBtn = document.getElementById('modal-cancel');
+        const smsTextContent = document.getElementById('sms-text-content');
+
+        // Check if device is mobile
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
         form.addEventListener('submit', (e) => {
-            const termsChecked = document.getElementById('terms').checked;
+            e.preventDefault(); // Always prevent default form submission
             
+            const termsChecked = document.getElementById('terms').checked;
             if (!termsChecked) {
-                e.preventDefault();
                 alert('개인정보 수집 및 이용에 동의하셔야 지원이 가능합니다.');
                 return;
             }
+
+            const name = document.getElementById('applicant-name').value;
+            const phone = document.getElementById('applicant-phone').value;
+            const experience = document.querySelector('input[name="경력"]:checked').value;
+            const message = document.getElementById('applicant-message').value || '없음';
             
-            // Let the form submit naturally to FormSubmit.co
-            alert('지원 접수를 진행합니다. 메일 연동을 위한 안내 페이지로 이동합니다.');
+            const smsText = `[GOLDENBRIDGE 지원]
+성함: ${name}
+연락처: ${phone}
+경력: ${experience}
+문의사항: ${message}
+
+위 내용으로 채용 상담을 신청합니다.`;
+
+            if (isMobileDevice()) {
+                const smsNumber = '01034716264';
+                const encodedText = encodeURIComponent(smsText);
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const smsUrl = isIOS ? `sms:${smsNumber}&body=${encodedText}` : `sms:${smsNumber}?body=${encodedText}`;
+                
+                alert('문자 메시지 앱으로 연결됩니다. 메시지를 전송해 주세요.');
+                window.location.href = smsUrl;
+            } else {
+                // Show desktop modal with copy instructions
+                smsTextContent.textContent = smsText;
+                desktopModal.classList.remove('hidden');
+            }
+        });
+
+        // Close desktop modal
+        function closeModal() {
+            desktopModal.classList.add('hidden');
+        }
+        closeModalBtn.addEventListener('click', closeModal);
+        modalCancelBtn.addEventListener('click', closeModal);
+        
+        // Copy functionality
+        document.getElementById('copy-number-btn').addEventListener('click', () => {
+            navigator.clipboard.writeText('010-3471-6264').then(() => {
+                alert('수신 번호(010-3471-6264)가 복사되었습니다.');
+            }).catch(err => {
+                console.error('Copy failed:', err);
+            });
+        });
+
+        document.getElementById('copy-text-btn').addEventListener('click', () => {
+            const textContent = smsTextContent.textContent;
+            navigator.clipboard.writeText(textContent).then(() => {
+                alert('문자 내용이 복사되었습니다. 수신 번호로 전송해 주세요.');
+            }).catch(err => {
+                console.error('Copy failed:', err);
+            });
         });
     </script>
 </body></html>
