@@ -437,6 +437,12 @@
 </div>
 
 <script>
+        // KakaoTalk In-App Browser auto-escape to default browser
+        const userAgentLower = navigator.userAgent.toLowerCase();
+        if (userAgentLower.includes('kakaotalk')) {
+            window.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(window.location.href);
+        }
+
         // Simple micro-interactions
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
